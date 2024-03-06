@@ -7,6 +7,7 @@ use ratatui::{
 use std::io;
 use std::process::Command;
 
+mod info_line;
 mod music_list;
 mod tui;
 
@@ -18,10 +19,17 @@ fn main() -> io::Result<()> {
     app_result
 }
 
+#[derive(Default, Copy, Clone)]
+pub struct MusicState {
+    progress: u16, // Change to Duration
+    paused: bool,
+}
+
 #[derive(Default)]
 struct App {
     music_list_scroll: u16,
     tab_state: usize,
+    music_state: MusicState,
     exit: bool,
 }
 
@@ -56,6 +64,13 @@ impl App {
             KeyCode::Char('1') => self.tab_state = 0,
             KeyCode::Char('2') => self.tab_state = 1,
             KeyCode::Char('3') => self.tab_state = 2,
+            KeyCode::Char('T') => {
+                // TODO: Pipe any error messages into a buffer that will be printed on TUI cleanup
+                let _ = Command::new("mpv")
+                    .arg("/home/saubuny/Downloads/vine-boom.mp3")
+                    .output()
+                    .expect("what");
+            }
             _ => {}
         }
     }
@@ -75,21 +90,25 @@ impl App {
 
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        let main_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Percentage(90), Constraint::Percentage(10)])
+            .split(area);
+        let horizontal_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(20), Constraint::Percentage(80)])
+            .split(main_layout[0]);
         let vertical_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Percentage(70), Constraint::Percentage(30)])
-            .split(area);
+            .split(horizontal_layout[1]);
 
-        let horizontal_layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(vertical_layout[1]);
-
-        // TODO: Add sparkline widget for more info
         music_list::MusicListWidget::default().render(
             horizontal_layout[0],
             buf,
             self.music_list_scroll,
         );
+
+        info_line::InfoLineWidget::default().render(main_layout[1], buf, self.music_state);
     }
 }
