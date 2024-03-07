@@ -5,13 +5,18 @@ use ratatui::{
 };
 
 #[derive(Default)]
-pub struct InfoLineWidget;
+pub struct InfoPanelWidget;
 
-impl InfoLineWidget {
+impl InfoPanelWidget {
     pub fn render(self, area: Rect, buf: &mut Buffer) {
+        let title = Title::from("Metadata".bold());
         let block = Block::default()
             .borders(Borders::ALL)
+            .title(title)
             .border_set(border::PLAIN);
-        Widget::render(block, area, buf);
+
+        let mut lines = vec![];
+
+        Paragraph::new(lines).block(block).render(area, buf);
     }
 }
