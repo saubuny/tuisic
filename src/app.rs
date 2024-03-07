@@ -10,14 +10,26 @@ pub struct App {
     music_list_scroll: u16,
     music_path: String,
     mpv_output: String,
+    mpv_handler: Option<mpv::MpvHandler>,
     exit: bool,
 }
 
 impl App {
     pub fn run(&mut self, terminal: &mut tui::Tui) -> io::Result<()> {
+        let mut mpv_builder = mpv::MpvHandlerBuilder::new().expect("Failed to create mpv builder.");
+        mpv_builder
+            .set_option("vid", "no")
+            .expect("Failed to turn off video player option.");
+        let mut mpv_handler = mpv_builder.build().expect("Failed to build mpv handle.");
+        self.mpv_handler = Some(mpv_handler);
         while !self.exit {
             terminal.draw(|frame| self.render_frame(frame))?;
             self.handle_events()?;
+            if let Some(h) = &mut self.mpv_handler {
+                let event = h.wait_event(0.);
+                // Can run things on event, such as updating meta tags to display
+                // NOTE: Display metadata tags as a list
+            }
         }
         Ok(())
     }
@@ -42,7 +54,21 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.scroll_music_list_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_music_list_down(),
             // Test for running audio, remove this later when selection is implemented
-            KeyCode::Char('T') => {}
+            KeyCode::Char('T') => {
+                if let Some(h) = &mut self.mpv_handler {
+                    h.command(&["loadfile", "/home/saubuny/Downloads/woven_web.mp3"]);
+                }
+            }
+            KeyCode::Char('p') => {
+                // I feel like there's a more elegant way to do this but oh well
+                if let Some(h) = &mut self.mpv_handler {
+                    if h.get_property::<&str>("pause").unwrap() == "no" {
+                        h.set_property("pause", "yes");
+                    } else {
+                        h.set_property("pause", "no");
+                    }
+                }
+            }
             _ => {}
         }
     }
