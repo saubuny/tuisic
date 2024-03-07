@@ -1,4 +1,5 @@
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use metadata::media_file::MediaFileMetadata;
 use ratatui::{
     prelude::*,
     symbols::border,
@@ -30,6 +31,8 @@ struct App {
     music_list_scroll: u16,
     tab_state: usize,
     music_state: MusicState,
+    music_path: String,
+    music_metadata: Option<MediaFileMetadata>,
     exit: bool,
 }
 
@@ -65,14 +68,20 @@ impl App {
             KeyCode::Char('2') => self.tab_state = 1,
             KeyCode::Char('3') => self.tab_state = 2,
             KeyCode::Char('T') => {
+                self.music_path = "/home/saubuny/Downloads/vine-boom.mp3".to_string();
                 // TODO: Pipe any error messages into a buffer that will be printed on TUI cleanup
                 let _ = Command::new("mpv")
-                    .arg("/home/saubuny/Downloads/vine-boom.mp3")
+                    .arg(&self.music_path)
                     .output()
                     .expect("what");
+                self.get_file_metadata();
             }
             _ => {}
         }
+    }
+
+    fn get_file_metadata(&mut self) {
+        self.music_metadata = MediaFileMetadata::new(&self.music_path).ok();
     }
 
     fn scroll_music_list_up(&mut self) {
@@ -94,10 +103,12 @@ impl Widget for &App {
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Percentage(90), Constraint::Percentage(10)])
             .split(area);
+
         let horizontal_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Percentage(20), Constraint::Percentage(80)])
             .split(main_layout[0]);
+
         let vertical_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Percentage(70), Constraint::Percentage(30)])
