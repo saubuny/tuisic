@@ -9,7 +9,7 @@ use std::io;
 pub struct App {
     music_list_scroll: u16,
     music_path: String,
-    mpv_output: String,
+    mpv_metadata: String,
     mpv_handler: Option<mpv::MpvHandler>,
     exit: bool,
 }
@@ -20,15 +20,16 @@ impl App {
         mpv_builder
             .set_option("vid", "no")
             .expect("Failed to turn off video player option.");
-        let mut mpv_handler = mpv_builder.build().expect("Failed to build mpv handle.");
+        let mpv_handler = mpv_builder.build().expect("Failed to build mpv handle.");
         self.mpv_handler = Some(mpv_handler);
         while !self.exit {
             terminal.draw(|frame| self.render_frame(frame))?;
             self.handle_events()?;
             if let Some(h) = &mut self.mpv_handler {
-                let event = h.wait_event(0.);
-                // Can run things on event, such as updating meta tags to display
-                // NOTE: Display metadata tags as a list
+                match h.wait_event(0.) {
+                    Some(mpv::Event::StartFile) => self.get_file_metadata(),
+                    _ => {}
+                }
             }
         }
         Ok(())
@@ -54,13 +55,13 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.scroll_music_list_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_music_list_down(),
             // Test for running audio, remove this later when selection is implemented
-            KeyCode::Char('T') => {
+            KeyCode::Char('t') => {
                 if let Some(h) = &mut self.mpv_handler {
                     h.command(&["loadfile", "/home/saubuny/Downloads/woven_web.mp3"]);
                 }
             }
             KeyCode::Char('p') => {
-                // I feel like there's a more elegant way to do this but oh well
+                // I feel like there's a more elegant way to do this but oh well as mpv::MpvFormat
                 if let Some(h) = &mut self.mpv_handler {
                     if h.get_property::<&str>("pause").unwrap() == "no" {
                         h.set_property("pause", "yes");
@@ -74,7 +75,11 @@ impl App {
     }
 
     // Parse MPV output
-    fn get_file_metadata(&mut self) {}
+    fn get_file_metadata(&mut self) {
+        if let Some(h) = &mut self.mpv_handler {
+            self.mpv_metadata = h.get_property::<&str>("metadata").unwrap().to_owned();
+        }
+    }
 
     fn scroll_music_list_up(&mut self) {
         self.music_list_scroll = self.music_list_scroll.saturating_sub(1);
@@ -103,7 +108,7 @@ impl Widget for &App {
 
         MusicListWidget::default().render(horizontal_layout[0], buf, self.music_list_scroll);
 
-        InfoPanelWidget::default().render(horizontal_layout[1], buf);
+        InfoPanelWidget::default().render(horizontal_layout[1], buf, self.mpv_metadata.clone());
         InfoLineWidget::default().render(vertical_layout[1], buf);
     }
 }
