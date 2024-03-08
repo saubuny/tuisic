@@ -6,10 +6,20 @@ use ratatui::prelude::*;
 use std::io;
 
 #[derive(Default)]
+pub struct MusicState {
+    pub progress: i64,
+    pub duration: i64,
+    pub paused: bool,
+    pub volume: i64,
+    pub speed: i64,
+}
+
+#[derive(Default)]
 pub struct App {
     music_list_scroll: u16,
     music_path: String,
     mpv_metadata: String,
+    music_state: MusicState,
     mpv_handler: Option<mpv::MpvHandler>,
     exit: bool,
 }
@@ -22,12 +32,25 @@ impl App {
             .expect("Failed to turn off video player option.");
         let mpv_handler = mpv_builder.build().expect("Failed to build mpv handle.");
         self.mpv_handler = Some(mpv_handler);
+
+        if let Some(h) = &mut self.mpv_handler {
+            h.observe_property::<i64>("time-pos", 0); // ????
+        }
+
         while !self.exit {
             terminal.draw(|frame| self.render_frame(frame))?;
             self.handle_events()?;
             if let Some(h) = &mut self.mpv_handler {
                 match h.wait_event(0.) {
-                    Some(mpv::Event::StartFile) => self.get_file_metadata(),
+                    Some(mpv::Event::StartFile) => {
+                        self.get_file_metadata();
+                    }
+                    Some(mpv::Event::PropertyChange {
+                        name: "time-pos", ..
+                    }) => {
+                        self.get_music_state();
+                        terminal.draw(|frame| self.render_frame(frame))?;
+                    }
                     _ => {}
                 }
             }
@@ -55,18 +78,24 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.scroll_music_list_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_music_list_down(),
             // Test for running audio, remove this later when selection is implemented
+            // NOTE: Weird bug where if you press this after a the uppercase
+            // version of the char before any files are loaded, the program
+            // crashes
             KeyCode::Char('t') => {
                 if let Some(h) = &mut self.mpv_handler {
                     h.command(&["loadfile", "/home/saubuny/Downloads/woven_web.mp3"]);
                 }
             }
+
+            // Definitely a better way to do all of this but it works so oh well
             KeyCode::Char('p') => {
-                // I feel like there's a more elegant way to do this but oh well as mpv::MpvFormat
                 if let Some(h) = &mut self.mpv_handler {
                     if h.get_property::<&str>("pause").unwrap() == "no" {
                         h.set_property("pause", "yes");
+                        self.music_state.paused = true;
                     } else {
                         h.set_property("pause", "no");
+                        self.music_state.paused = false;
                     }
                 }
             }
@@ -74,10 +103,27 @@ impl App {
         }
     }
 
-    // Parse MPV output
     fn get_file_metadata(&mut self) {
         if let Some(h) = &mut self.mpv_handler {
             self.mpv_metadata = h.get_property::<&str>("metadata").unwrap().to_owned();
+        }
+    }
+
+    fn get_music_state(&mut self) {
+        if let Some(h) = &mut self.mpv_handler {
+            let speed = h.get_property::<i64>("speed").unwrap();
+            let duration = h.get_property::<i64>("duration").unwrap();
+            let paused = h.get_property::<bool>("pause").unwrap();
+            let volume = h.get_property::<i64>("volume").unwrap();
+            let progress = h.get_property::<i64>("time-pos").unwrap();
+
+            self.music_state = MusicState {
+                speed,
+                duration,
+                paused,
+                volume,
+                progress,
+            };
         }
     }
 
@@ -109,6 +155,6 @@ impl Widget for &App {
         MusicListWidget::default().render(horizontal_layout[0], buf, self.music_list_scroll);
 
         InfoPanelWidget::default().render(horizontal_layout[1], buf, self.mpv_metadata.clone());
-        InfoLineWidget::default().render(vertical_layout[1], buf);
+        InfoLineWidget::default().render(vertical_layout[1], buf, &self.music_state);
     }
 }

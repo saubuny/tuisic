@@ -12,8 +12,8 @@ impl InfoPanelWidget {
     pub fn render(self, area: Rect, buf: &mut Buffer, metadata: String) {
         let title = Title::from("Metadata".bold());
         let block = Block::default()
+            .title(title.alignment(Alignment::Center))
             .borders(Borders::ALL)
-            .title(title)
             .border_set(border::PLAIN);
         let mut lines = vec![];
 
