@@ -5,7 +5,6 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::prelude::*;
 use std::io;
 
-#[derive(Default)]
 pub struct MusicState {
     pub progress: i64,
     pub duration: i64,
@@ -19,7 +18,7 @@ pub struct App {
     music_list_scroll: u16,
     music_path: String,
     mpv_metadata: String,
-    music_state: MusicState,
+    music_state: Option<MusicState>,
     mpv_handler: Option<mpv::MpvHandler>,
     exit: bool,
 }
@@ -49,7 +48,6 @@ impl App {
                         name: "time-pos", ..
                     }) => {
                         self.get_music_state();
-                        terminal.draw(|frame| self.render_frame(frame))?;
                     }
                     _ => {}
                 }
@@ -90,12 +88,14 @@ impl App {
             // Definitely a better way to do all of this but it works so oh well
             KeyCode::Char('p') => {
                 if let Some(h) = &mut self.mpv_handler {
-                    if h.get_property::<&str>("pause").unwrap() == "no" {
-                        h.set_property("pause", "yes");
-                        self.music_state.paused = true;
-                    } else {
-                        h.set_property("pause", "no");
-                        self.music_state.paused = false;
+                    if let Some(m) = &mut self.music_state {
+                        if h.get_property::<&str>("pause").unwrap() == "no" {
+                            h.set_property("pause", "yes");
+                            m.paused = true;
+                        } else {
+                            h.set_property("pause", "no");
+                            m.paused = false;
+                        }
                     }
                 }
             }
@@ -117,13 +117,13 @@ impl App {
             let volume = h.get_property::<i64>("volume").unwrap();
             let progress = h.get_property::<i64>("time-pos").unwrap();
 
-            self.music_state = MusicState {
+            self.music_state = Some(MusicState {
                 speed,
                 duration,
                 paused,
                 volume,
                 progress,
-            };
+            });
         }
     }
 
@@ -155,6 +155,6 @@ impl Widget for &App {
         MusicListWidget::default().render(horizontal_layout[0], buf, self.music_list_scroll);
 
         InfoPanelWidget::default().render(horizontal_layout[1], buf, self.mpv_metadata.clone());
-        InfoLineWidget::default().render(vertical_layout[1], buf, &self.music_state);
+        InfoLineWidget::default().render(vertical_layout[1], buf, self.music_state.as_ref());
     }
 }
