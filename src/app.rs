@@ -43,23 +43,17 @@ impl App {
             self.handle_events()?;
             if let Some(h) = &mut self.mpv_handler {
                 match h.wait_event(0.) {
-                    // Weird checks/hacks that prevent these searches happening before/after a file starts/finishes, idk another way to do it
                     Some(mpv::Event::StartFile) => {
-                        self.mpv_metadata = " ".to_string();
                         self.music_state = MusicState::default();
-                        self.music_state.duration = 1; // Wish there was another way to do this...
                     }
                     Some(mpv::Event::PropertyChange {
                         name: "time-pos", ..
-                    }) if !self.mpv_metadata.is_empty()
-                        && self.music_state.progress < self.music_state.duration =>
-                    {
-                        self.get_music_state().map_err(|e| {
-                            println!("[Error]: {}", e);
-                        });
-                        self.get_file_metadata().map_err(|e| {
-                            println!("[Error]: {}", e);
-                        });
+                    }) => {
+                        // Any error is simply from trying to read when it shouldn't, so we can
+                        // ignore it
+                        if self.get_music_state().is_ok() {
+                            let _ = self.get_file_metadata();
+                        }
                     }
                     _ => {}
                 }
@@ -92,7 +86,7 @@ impl App {
             // Test for running audio, remove this later when selection is implemented
             KeyCode::Char('t') => {
                 if let Some(h) = &mut self.mpv_handler {
-                    h.command(&["loadfile", "/home/saubuny/Downloads/woven_web.mp3"]);
+                    h.command(&["loadfile", "/home/saubuny/Downloads/tricot.mp3"]);
                 }
             }
 
