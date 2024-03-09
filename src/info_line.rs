@@ -1,11 +1,14 @@
 use crate::app::MusicState;
-use ratatui::{prelude::*, widgets::*};
+use ratatui::{prelude::*, style::Stylize, widgets::*};
 
 #[derive(Default)]
 pub struct InfoLineWidget;
 
 impl InfoLineWidget {
     pub fn render(self, area: Rect, buf: &mut Buffer, music_state: MusicState) {
+        let layout =
+            Layout::horizontal([Constraint::Percentage(100), Constraint::Min(12)]).split(area);
+
         let mut progress_ratio = 0.;
         if music_state.duration > 0 {
             progress_ratio = music_state.progress as f64 / music_state.duration as f64;
@@ -32,6 +35,14 @@ impl InfoLineWidget {
             .line_set(symbols::line::THICK)
             .ratio(progress_ratio);
 
-        Widget::render(gauge, area, buf);
+        Widget::render(gauge, layout[0], buf);
+
+        let pause = if music_state.paused { " " } else { " " };
+        let status = format!(" {:.2} {:3}%", music_state.speed, music_state.volume);
+        let line = Line::from(vec![
+            Span::from(pause).style(Style::default().bold()),
+            Span::from(status),
+        ]);
+        Paragraph::new(line).render(layout[1], buf);
     }
 }

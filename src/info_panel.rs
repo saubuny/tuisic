@@ -17,7 +17,7 @@ impl InfoPanelWidget {
         let mut lines = vec![];
 
         let mut str = String::from("");
-        for (_i, ch) in metadata.chars().enumerate() {
+        for (_, ch) in metadata.chars().enumerate() {
             str.push(ch);
             if ch == '\n' {
                 lines.push(Line::from(str));

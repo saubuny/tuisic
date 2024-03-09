@@ -13,7 +13,7 @@ pub struct MusicState {
     pub duration: i64,
     pub paused: bool,
     pub volume: i64,
-    pub speed: i64,
+    pub speed: f64,
 }
 
 #[derive(Default)]
@@ -90,6 +90,7 @@ impl App {
             }
 
             // Definitely a better way to do all of this but it works so oh well
+            // TODO: Implement speed, volume, and skip queue controls
             KeyCode::Char('p') => {
                 if let Some(h) = &mut self.mpv_handler {
                     if h.get_property::<&str>("pause").unwrap() == "no" {
@@ -117,7 +118,7 @@ impl App {
 
     fn get_music_state(&mut self) -> Result<()> {
         if let Some(h) = &mut self.mpv_handler {
-            let speed = h.get_property::<i64>("speed")?;
+            let speed = h.get_property::<f64>("speed")?;
             let duration = h.get_property::<i64>("duration")?;
             let paused = h.get_property::<bool>("pause")?;
             let volume = h.get_property::<i64>("volume")?;

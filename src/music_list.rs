@@ -8,7 +8,9 @@ use ratatui::{
 pub struct MusicListWidget;
 
 // TODO: Convert this to use a List instead of just paragraph lines
+// TODO: Create a queue for music
 // TODO: "/" for seaching (perhaps a Search mode on the main App state)
+// TODO: Add controls as bottom title
 impl MusicListWidget {
     pub fn render(self, area: Rect, buf: &mut Buffer, scroll_state: u16) {
         let title = Title::from("Files".bold());
