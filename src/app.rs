@@ -5,7 +5,9 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use mpv::Result;
 use ratatui::prelude::*;
 use std::io;
+use std::time::Duration;
 
+#[derive(Default, Clone, Copy)]
 pub struct MusicState {
     pub progress: i64,
     pub duration: i64,
@@ -19,18 +21,17 @@ pub struct App {
     music_list_scroll: u16,
     music_path: String,
     mpv_metadata: String,
-    music_state: Option<MusicState>,
+    music_state: MusicState,
     mpv_handler: Option<mpv::MpvHandler>,
     exit: bool,
 }
 
 impl App {
     pub fn run(&mut self, terminal: &mut tui::Tui) -> io::Result<()> {
-        let mut mpv_builder = mpv::MpvHandlerBuilder::new().expect("Failed to create mpv builder.");
-        mpv_builder
-            .set_option("vid", "no")
-            .expect("Failed to turn off video player option.");
-        let mpv_handler = mpv_builder.build().expect("Failed to build mpv handle.");
+        let mut mpv_builder = mpv::MpvHandlerBuilder::new().unwrap();
+        mpv_builder.set_option("vid", "no").unwrap();
+        mpv_builder.set_option("start", "98%").unwrap();
+        let mpv_handler = mpv_builder.build().unwrap();
         self.mpv_handler = Some(mpv_handler);
 
         if let Some(h) = &mut self.mpv_handler {
@@ -42,18 +43,22 @@ impl App {
             self.handle_events()?;
             if let Some(h) = &mut self.mpv_handler {
                 match h.wait_event(0.) {
+                    // Weird checks/hacks that prevent these searches happening before/after a file starts/finishes, idk another way to do it
                     Some(mpv::Event::StartFile) => {
-                        self.get_file_metadata().map_err(|e| {
-                            eprintln!("[Error]: {}", e);
-                        });
+                        self.mpv_metadata = " ".to_string();
+                        self.music_state = MusicState::default();
+                        self.music_state.duration = 1; // Wish there was another way to do this...
                     }
-                    // For some reason this runs even before a file is playing,
-                    // so we have to make sure manually
                     Some(mpv::Event::PropertyChange {
                         name: "time-pos", ..
-                    }) if !self.mpv_metadata.is_empty() => {
+                    }) if !self.mpv_metadata.is_empty()
+                        && self.music_state.progress < self.music_state.duration =>
+                    {
                         self.get_music_state().map_err(|e| {
-                            eprintln!("[Error]: {}", e);
+                            println!("[Error]: {}", e);
+                        });
+                        self.get_file_metadata().map_err(|e| {
+                            println!("[Error]: {}", e);
                         });
                     }
                     _ => {}
@@ -68,12 +73,14 @@ impl App {
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
-        match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_event(key_event)
-            }
-            _ => {}
-        };
+        if event::poll(Duration::from_millis(100))? {
+            match event::read()? {
+                Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                    self.handle_key_event(key_event)
+                }
+                _ => {}
+            };
+        }
         Ok(())
     }
 
@@ -83,9 +90,6 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.scroll_music_list_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_music_list_down(),
             // Test for running audio, remove this later when selection is implemented
-            // NOTE: Weird bug where if you press this after a the uppercase
-            // version of the char before any files are loaded, the program
-            // crashes
             KeyCode::Char('t') => {
                 if let Some(h) = &mut self.mpv_handler {
                     h.command(&["loadfile", "/home/saubuny/Downloads/woven_web.mp3"]);
@@ -95,15 +99,17 @@ impl App {
             // Definitely a better way to do all of this but it works so oh well
             KeyCode::Char('p') => {
                 if let Some(h) = &mut self.mpv_handler {
-                    if let Some(m) = &mut self.music_state {
-                        if h.get_property::<&str>("pause").unwrap() == "no" {
-                            h.set_property("pause", "yes");
-                            m.paused = true;
-                        } else {
-                            h.set_property("pause", "no");
-                            m.paused = false;
-                        }
+                    // if let Some(m) = &mut self.music_state {
+                    if h.get_property::<&str>("pause").unwrap() == "no" {
+                        h.set_property("pause", "yes");
+                        // m.paused = true;
+                        self.music_state.paused = true;
+                    } else {
+                        h.set_property("pause", "no");
+                        // m.paused = false;
+                        self.music_state.paused = false;
                     }
+                    // }
                 }
             }
             _ => {}
@@ -112,7 +118,10 @@ impl App {
 
     fn get_file_metadata(&mut self) -> Result<()> {
         if let Some(h) = &mut self.mpv_handler {
-            self.mpv_metadata = h.get_property::<&str>("metadata")?.to_owned();
+            self.mpv_metadata = h
+                .get_property::<mpv::OsdString>("filtered-metadata")?
+                .string
+                .to_string();
         }
         Ok(())
     }
@@ -123,15 +132,15 @@ impl App {
             let duration = h.get_property::<i64>("duration")?;
             let paused = h.get_property::<bool>("pause")?;
             let volume = h.get_property::<i64>("volume")?;
-            let progress = h.get_property::<i64>("time-pos")?;
+            let progress = h.get_property::<i64>("playback-time")?;
 
-            self.music_state = Some(MusicState {
+            self.music_state = MusicState {
                 speed,
                 duration,
                 paused,
                 volume,
                 progress,
-            });
+            };
         }
         Ok(())
     }
@@ -151,19 +160,14 @@ impl App {
 
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let vertical_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Percentage(90), Constraint::Percentage(10)])
-            .split(area);
-
-        let horizontal_layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(70), Constraint::Percentage(30)])
-            .split(vertical_layout[0]);
+        let vertical_layout =
+            Layout::vertical([Constraint::Percentage(100), Constraint::Min(1)]).split(area);
+        let horizontal_layout =
+            Layout::horizontal([Constraint::Percentage(70), Constraint::Fill(1)])
+                .split(vertical_layout[0]);
 
         MusicListWidget::default().render(horizontal_layout[0], buf, self.music_list_scroll);
-
         InfoPanelWidget::default().render(horizontal_layout[1], buf, self.mpv_metadata.clone());
-        InfoLineWidget::default().render(vertical_layout[1], buf, self.music_state.as_ref());
+        InfoLineWidget::default().render(vertical_layout[1], buf, self.music_state.clone());
     }
 }
