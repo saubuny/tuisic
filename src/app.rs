@@ -2,6 +2,7 @@ use crate::{
     info_line::InfoLineWidget, info_panel::InfoPanelWidget, music_list::MusicListWidget, tui,
 };
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use mpv::Result;
 use ratatui::prelude::*;
 use std::io;
 
@@ -42,12 +43,18 @@ impl App {
             if let Some(h) = &mut self.mpv_handler {
                 match h.wait_event(0.) {
                     Some(mpv::Event::StartFile) => {
-                        self.get_file_metadata();
+                        self.get_file_metadata().map_err(|e| {
+                            eprintln!("[Error]: {}", e);
+                        });
                     }
+                    // For some reason this runs even before a file is playing,
+                    // so we have to make sure manually
                     Some(mpv::Event::PropertyChange {
                         name: "time-pos", ..
-                    }) => {
-                        self.get_music_state();
+                    }) if !self.mpv_metadata.is_empty() => {
+                        self.get_music_state().map_err(|e| {
+                            eprintln!("[Error]: {}", e);
+                        });
                     }
                     _ => {}
                 }
@@ -103,19 +110,20 @@ impl App {
         }
     }
 
-    fn get_file_metadata(&mut self) {
+    fn get_file_metadata(&mut self) -> Result<()> {
         if let Some(h) = &mut self.mpv_handler {
-            self.mpv_metadata = h.get_property::<&str>("metadata").unwrap().to_owned();
+            self.mpv_metadata = h.get_property::<&str>("metadata")?.to_owned();
         }
+        Ok(())
     }
 
-    fn get_music_state(&mut self) {
+    fn get_music_state(&mut self) -> Result<()> {
         if let Some(h) = &mut self.mpv_handler {
-            let speed = h.get_property::<i64>("speed").unwrap();
-            let duration = h.get_property::<i64>("duration").unwrap();
-            let paused = h.get_property::<bool>("pause").unwrap();
-            let volume = h.get_property::<i64>("volume").unwrap();
-            let progress = h.get_property::<i64>("time-pos").unwrap();
+            let speed = h.get_property::<i64>("speed")?;
+            let duration = h.get_property::<i64>("duration")?;
+            let paused = h.get_property::<bool>("pause")?;
+            let volume = h.get_property::<i64>("volume")?;
+            let progress = h.get_property::<i64>("time-pos")?;
 
             self.music_state = Some(MusicState {
                 speed,
@@ -125,6 +133,7 @@ impl App {
                 progress,
             });
         }
+        Ok(())
     }
 
     fn scroll_music_list_up(&mut self) {
