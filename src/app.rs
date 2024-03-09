@@ -30,12 +30,11 @@ impl App {
     pub fn run(&mut self, terminal: &mut tui::Tui) -> io::Result<()> {
         let mut mpv_builder = mpv::MpvHandlerBuilder::new().unwrap();
         mpv_builder.set_option("vid", "no").unwrap();
-        mpv_builder.set_option("start", "98%").unwrap();
         let mpv_handler = mpv_builder.build().unwrap();
         self.mpv_handler = Some(mpv_handler);
 
         if let Some(h) = &mut self.mpv_handler {
-            h.observe_property::<i64>("time-pos", 0); // ????
+            let _ = h.observe_property::<i64>("time-pos", 0);
         }
 
         while !self.exit {
@@ -86,24 +85,20 @@ impl App {
             // Test for running audio, remove this later when selection is implemented
             KeyCode::Char('t') => {
                 if let Some(h) = &mut self.mpv_handler {
-                    h.command(&["loadfile", "/home/saubuny/Downloads/tricot.mp3"]);
+                    let _ = h.command(&["loadfile", "/home/saubuny/Downloads/tricot.mp3"]);
                 }
             }
 
             // Definitely a better way to do all of this but it works so oh well
             KeyCode::Char('p') => {
                 if let Some(h) = &mut self.mpv_handler {
-                    // if let Some(m) = &mut self.music_state {
                     if h.get_property::<&str>("pause").unwrap() == "no" {
-                        h.set_property("pause", "yes");
-                        // m.paused = true;
+                        let _ = h.set_property("pause", "yes");
                         self.music_state.paused = true;
                     } else {
-                        h.set_property("pause", "no");
-                        // m.paused = false;
+                        let _ = h.set_property("pause", "no");
                         self.music_state.paused = false;
                     }
-                    // }
                 }
             }
             _ => {}
