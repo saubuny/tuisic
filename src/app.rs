@@ -67,8 +67,9 @@ impl App {
                         self.is_playing = true;
                     }
                     Some(mpv::Event::EndFile(..)) => {
-                        self.is_playing = false;
-                        self.skip_queue();
+                        if self.is_playing {
+                            self.skip_queue();
+                        }
                     }
                     Some(mpv::Event::PropertyChange {
                         name: "playback-time",
@@ -179,9 +180,13 @@ impl App {
     }
 
     fn skip_queue(&mut self) {
+        self.is_playing = false;
         if let Some(h) = &mut self.mpv_handler {
-            let file: PathBuf = self.queue.pop_front().unwrap_or("".into());
-            let _ = h.command(&["loadfile", file.to_str().unwrap()]);
+            let file = self.queue.pop_front().unwrap_or("".into());
+            let file = file.to_str().unwrap();
+            if !file.is_empty() {
+                let _ = h.command(&["loadfile", file]);
+            }
         }
     }
 

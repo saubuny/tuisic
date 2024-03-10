@@ -8,8 +8,6 @@ use std::path::PathBuf;
 #[derive(Default)]
 pub struct MusicListWidget;
 
-// TODO: "/" for seaching (perhaps a Search mode on the main App state)
-// A search mode would show a fzf-like interface with BottomToTop directed list
 impl MusicListWidget {
     pub fn render(
         self,
