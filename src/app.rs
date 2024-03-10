@@ -4,8 +4,10 @@ use crate::{
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use mpv::Result;
 use ratatui::prelude::*;
+use std::fs;
 use std::io;
 use std::ops::{Add, Sub};
+use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Default, Clone, Copy)]
@@ -19,8 +21,9 @@ pub struct MusicState {
 
 #[derive(Default)]
 pub struct App {
-    music_list_scroll: u16,
+    list_state: usize,
     music_path: String,
+    file_list: Vec<PathBuf>,
     mpv_metadata: String,
     music_state: MusicState,
     mpv_handler: Option<mpv::MpvHandler>,
@@ -36,6 +39,17 @@ impl App {
 
         if let Some(h) = &mut self.mpv_handler {
             let _ = h.observe_property::<i64>("playback-time", 0);
+        }
+
+        let music_dir = xdg_user::music().unwrap();
+        if let Some(d) = music_dir {
+            for path in fs::read_dir(d)? {
+                let path = path.unwrap().path();
+                self.file_list.push(path);
+            }
+        } else {
+            self.mpv_metadata =
+                "Please make sure you have an XDG Music Directory Set up".to_string();
         }
 
         while !self.exit {
@@ -85,11 +99,11 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.scroll_music_list_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_music_list_down(),
             // Test for running audio, remove this later when selection is implemented
-            KeyCode::Char('t') => {
-                if let Some(h) = &mut self.mpv_handler {
-                    let _ = h.command(&["loadfile", "/home/saubuny/Downloads/tricot.mp3"]);
-                }
-            }
+            // KeyCode::Char('t') => {
+            //     if let Some(h) = &mut self.mpv_handler {
+            //         let _ = h.command(&["loadfile", "/home/saubuny/Downloads/tricot.mp3"]);
+            //     }
+            // }
 
             // Definitely a better way to do all of this but it works so oh well
             // TODO: Implement speed, volume, and skip queue controls
@@ -167,11 +181,11 @@ impl App {
     }
 
     fn scroll_music_list_up(&mut self) {
-        self.music_list_scroll = self.music_list_scroll.saturating_sub(1);
+        self.list_state = self.list_state.saturating_sub(1);
     }
 
     fn scroll_music_list_down(&mut self) {
-        self.music_list_scroll = self.music_list_scroll.saturating_add(1);
+        self.list_state = self.list_state.add(1).clamp(0, self.file_list.len() - 1);
     }
 
     fn exit(&mut self) {
@@ -187,8 +201,12 @@ impl Widget for &App {
             Layout::horizontal([Constraint::Percentage(70), Constraint::Fill(1)])
                 .split(vertical_layout[0]);
 
-        MusicListWidget::default().render(horizontal_layout[0], buf, self.music_list_scroll);
-
+        MusicListWidget::default().render(
+            horizontal_layout[0],
+            buf,
+            self.list_state,
+            &self.file_list,
+        );
         InfoPanelWidget::default().render(horizontal_layout[1], buf, self.mpv_metadata.clone());
         InfoLineWidget::default().render(vertical_layout[1], buf, self.music_state.clone());
     }
