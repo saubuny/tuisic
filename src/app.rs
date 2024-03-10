@@ -24,6 +24,7 @@ pub struct MusicState {
 pub struct App {
     list_state: usize,
     file_list: Vec<PathBuf>,
+    base_path: PathBuf,
     queue: VecDeque<PathBuf>,
     is_playing: bool,
     mpv_metadata: String,
@@ -46,6 +47,7 @@ impl App {
         // TODO: Support nested folders
         let music_dir = xdg_user::music().unwrap();
         if let Some(d) = music_dir {
+            self.base_path = d.clone();
             for path in fs::read_dir(d)? {
                 let path = path.unwrap().path();
                 self.file_list.push(path);
@@ -66,6 +68,7 @@ impl App {
                     }
                     Some(mpv::Event::EndFile(..)) => {
                         self.is_playing = false;
+                        self.skip_queue();
                     }
                     Some(mpv::Event::PropertyChange {
                         name: "playback-time",
@@ -115,22 +118,8 @@ impl App {
                 }
             }
 
-            KeyCode::Char('q') => {
-                if let Some(h) = &mut self.mpv_handler {
-                    let file = self.file_list[self.list_state].clone();
-                    if self.is_playing {
-                        self.queue.push_back(file);
-                    } else {
-                        let _ = h.command(&["loadfile", file.to_str().unwrap()]);
-                    }
-                }
-            }
-            KeyCode::Char('s') => {
-                if let Some(h) = &mut self.mpv_handler {
-                    let file: PathBuf = self.queue.pop_front().unwrap_or("".into());
-                    let _ = h.command(&["loadfile", file.to_str().unwrap()]);
-                }
-            }
+            KeyCode::Char('q') => self.add_to_queue(),
+            KeyCode::Char('s') => self.skip_queue(),
 
             // Definitely a better way to do all of this but it works so oh well
             // TODO: Implement speed, volume, and skip queue controls
@@ -148,7 +137,7 @@ impl App {
             KeyCode::Char('(') => {
                 if let Some(h) = &mut self.mpv_handler {
                     let _ =
-                        h.set_property("speed", self.music_state.speed.sub(0.1).clamp(0.3, 5.0));
+                        h.set_property("speed", self.music_state.speed.sub(0.1).clamp(0.5, 2.0));
                     let _ = self.get_music_state();
                 }
             }
@@ -156,7 +145,7 @@ impl App {
             KeyCode::Char(')') => {
                 if let Some(h) = &mut self.mpv_handler {
                     let _ =
-                        h.set_property("speed", self.music_state.speed.add(0.1).clamp(0.3, 5.0));
+                        h.set_property("speed", self.music_state.speed.add(0.1).clamp(0.5, 2.0));
                     let _ = self.get_music_state();
                 }
             }
@@ -175,6 +164,24 @@ impl App {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn add_to_queue(&mut self) {
+        if let Some(h) = &mut self.mpv_handler {
+            let file = self.file_list[self.list_state].clone();
+            if self.is_playing {
+                self.queue.push_back(file);
+            } else {
+                let _ = h.command(&["loadfile", file.to_str().unwrap()]);
+            }
+        }
+    }
+
+    fn skip_queue(&mut self) {
+        if let Some(h) = &mut self.mpv_handler {
+            let file: PathBuf = self.queue.pop_front().unwrap_or("".into());
+            let _ = h.command(&["loadfile", file.to_str().unwrap()]);
         }
     }
 
@@ -233,7 +240,9 @@ impl Widget for &App {
             buf,
             self.list_state,
             &self.file_list,
+            self.base_path.clone(),
         );
+
         InfoPanelWidget::default().render(horizontal_layout[1], buf, self.mpv_metadata.clone());
         InfoLineWidget::default().render(vertical_layout[1], buf, self.music_state.clone());
     }

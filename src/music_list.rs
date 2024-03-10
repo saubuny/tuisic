@@ -8,11 +8,17 @@ use std::path::PathBuf;
 #[derive(Default)]
 pub struct MusicListWidget;
 
-// TODO: Create a queue for music
 // TODO: "/" for seaching (perhaps a Search mode on the main App state)
 // A search mode would show a fzf-like interface with BottomToTop directed list
 impl MusicListWidget {
-    pub fn render(self, area: Rect, buf: &mut Buffer, state: usize, file_list: &Vec<PathBuf>) {
+    pub fn render(
+        self,
+        area: Rect,
+        buf: &mut Buffer,
+        state: usize,
+        file_list: &Vec<PathBuf>,
+        base_path: PathBuf,
+    ) {
         let title = Title::from(" Files ".bold());
         let block = Block::default()
             .title(title.alignment(Alignment::Center))
@@ -21,7 +27,12 @@ impl MusicListWidget {
 
         let mut items = vec![];
         for path in file_list {
-            items.push(path.to_str().unwrap());
+            items.push(
+                path.strip_prefix(base_path.clone())
+                    .unwrap()
+                    .to_str()
+                    .unwrap(),
+            );
         }
 
         let list = List::new(items)
