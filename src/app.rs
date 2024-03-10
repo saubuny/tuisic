@@ -5,6 +5,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use mpv::Result;
 use ratatui::prelude::*;
 use std::io;
+use std::ops::{Add, Sub};
 use std::time::Duration;
 
 #[derive(Default, Clone, Copy)]
@@ -34,7 +35,7 @@ impl App {
         self.mpv_handler = Some(mpv_handler);
 
         if let Some(h) = &mut self.mpv_handler {
-            let _ = h.observe_property::<i64>("time-pos", 0);
+            let _ = h.observe_property::<i64>("playback-time", 0);
         }
 
         while !self.exit {
@@ -46,10 +47,11 @@ impl App {
                         self.music_state = MusicState::default();
                     }
                     Some(mpv::Event::PropertyChange {
-                        name: "time-pos", ..
+                        name: "playback-time",
+                        ..
                     }) => {
-                        // Any error is simply from trying to read when it shouldn't, so we can
-                        // ignore it
+                        // We have to delay fetching the metadata because mpv likes to make everything
+                        // crash if you do it too early
                         if self.get_music_state().is_ok() {
                             let _ = self.get_file_metadata();
                         }
@@ -95,11 +97,40 @@ impl App {
                 if let Some(h) = &mut self.mpv_handler {
                     if h.get_property::<&str>("pause").unwrap() == "no" {
                         let _ = h.set_property("pause", "yes");
-                        self.music_state.paused = true;
                     } else {
                         let _ = h.set_property("pause", "no");
-                        self.music_state.paused = false;
                     }
+                    let _ = self.get_music_state();
+                }
+            }
+
+            KeyCode::Char('[') => {
+                if let Some(h) = &mut self.mpv_handler {
+                    let _ =
+                        h.set_property("speed", self.music_state.speed.sub(0.1).clamp(0.3, 5.0));
+                    let _ = self.get_music_state();
+                }
+            }
+
+            KeyCode::Char(']') => {
+                if let Some(h) = &mut self.mpv_handler {
+                    let _ =
+                        h.set_property("speed", self.music_state.speed.add(0.1).clamp(0.3, 5.0));
+                    let _ = self.get_music_state();
+                }
+            }
+
+            KeyCode::Char('-') => {
+                if let Some(h) = &mut self.mpv_handler {
+                    let _ = h.set_property("volume", self.music_state.volume.sub(5).clamp(0, 130));
+                    let _ = self.get_music_state();
+                }
+            }
+
+            KeyCode::Char('=') => {
+                if let Some(h) = &mut self.mpv_handler {
+                    let _ = h.set_property("volume", self.music_state.volume.add(5).clamp(0, 130));
+                    let _ = self.get_music_state();
                 }
             }
             _ => {}
@@ -157,6 +188,7 @@ impl Widget for &App {
                 .split(vertical_layout[0]);
 
         MusicListWidget::default().render(horizontal_layout[0], buf, self.music_list_scroll);
+
         InfoPanelWidget::default().render(horizontal_layout[1], buf, self.mpv_metadata.clone());
         InfoLineWidget::default().render(vertical_layout[1], buf, self.music_state.clone());
     }
