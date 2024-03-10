@@ -13,9 +13,15 @@ pub struct MusicListWidget;
 // TODO: Add controls as bottom title
 impl MusicListWidget {
     pub fn render(self, area: Rect, buf: &mut Buffer, scroll_state: u16) {
-        let title = Title::from("Files".bold());
+        let title = Title::from(" Files ".bold());
+        let controls = Title::from(" Pause <p> | Volume <[> <]> | Speed <(> <)> ");
         let block = Block::default()
             .title(title.alignment(Alignment::Center))
+            .title(
+                controls
+                    .alignment(Alignment::Center)
+                    .position(Position::Bottom),
+            )
             .borders(Borders::ALL)
             .border_set(border::PLAIN);
 

@@ -9,7 +9,7 @@ pub struct InfoPanelWidget;
 
 impl InfoPanelWidget {
     pub fn render(self, area: Rect, buf: &mut Buffer, metadata: String) {
-        let title = Title::from("Metadata".bold());
+        let title = Title::from(" Metadata ".bold());
         let block = Block::default()
             .title(title.alignment(Alignment::Center))
             .borders(Borders::ALL)

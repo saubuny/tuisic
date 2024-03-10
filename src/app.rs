@@ -104,7 +104,7 @@ impl App {
                 }
             }
 
-            KeyCode::Char('[') => {
+            KeyCode::Char('(') => {
                 if let Some(h) = &mut self.mpv_handler {
                     let _ =
                         h.set_property("speed", self.music_state.speed.sub(0.1).clamp(0.3, 5.0));
@@ -112,7 +112,7 @@ impl App {
                 }
             }
 
-            KeyCode::Char(']') => {
+            KeyCode::Char(')') => {
                 if let Some(h) = &mut self.mpv_handler {
                     let _ =
                         h.set_property("speed", self.music_state.speed.add(0.1).clamp(0.3, 5.0));
@@ -120,14 +120,14 @@ impl App {
                 }
             }
 
-            KeyCode::Char('-') => {
+            KeyCode::Char('[') => {
                 if let Some(h) = &mut self.mpv_handler {
                     let _ = h.set_property("volume", self.music_state.volume.sub(5).clamp(0, 130));
                     let _ = self.get_music_state();
                 }
             }
 
-            KeyCode::Char('=') => {
+            KeyCode::Char(']') => {
                 if let Some(h) = &mut self.mpv_handler {
                     let _ = h.set_property("volume", self.music_state.volume.add(5).clamp(0, 130));
                     let _ = self.get_music_state();
