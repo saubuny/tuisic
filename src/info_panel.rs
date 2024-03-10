@@ -28,10 +28,13 @@ impl InfoPanelWidget {
 
         Paragraph::new(lines).block(block).render(layout[0], buf);
         let lines = vec![
+            Line::from(format!("{:7}{}", "Exit", "<Esc>")),
             Line::from(format!("{:7}{}", "Pause", "<p>")),
             Line::from(format!("{:7}{}", "Volume", "<[> <]>")),
             Line::from(format!("{:7}{}", "Speed", "<(> <)>")),
             Line::from(format!("{:7}{}", "Play", "<Enter>")),
+            Line::from(format!("{:7}{}", "Queue", "<q>")),
+            Line::from(format!("{:7}{}", "Skip", "<s>")),
         ];
 
         let title = Title::from(" Controls ".bold());

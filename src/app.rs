@@ -4,6 +4,7 @@ use crate::{
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use mpv::Result;
 use ratatui::prelude::*;
+use std::collections::VecDeque;
 use std::fs;
 use std::io;
 use std::ops::{Add, Sub};
@@ -22,8 +23,9 @@ pub struct MusicState {
 #[derive(Default)]
 pub struct App {
     list_state: usize,
-    music_path: String,
     file_list: Vec<PathBuf>,
+    queue: VecDeque<PathBuf>,
+    is_playing: bool,
     mpv_metadata: String,
     music_state: MusicState,
     mpv_handler: Option<mpv::MpvHandler>,
@@ -60,6 +62,10 @@ impl App {
                 match h.wait_event(0.) {
                     Some(mpv::Event::StartFile) => {
                         self.music_state = MusicState::default();
+                        self.is_playing = true;
+                    }
+                    Some(mpv::Event::EndFile(..)) => {
+                        self.is_playing = false;
                     }
                     Some(mpv::Event::PropertyChange {
                         name: "playback-time",
@@ -96,7 +102,7 @@ impl App {
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Char('q') => self.exit(),
+            KeyCode::Esc => self.exit(),
             KeyCode::Up | KeyCode::Char('k') => self.scroll_music_list_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_music_list_down(),
             // Test for running audio, remove this later when selection is implemented
@@ -106,6 +112,23 @@ impl App {
                         "loadfile",
                         self.file_list[self.list_state].to_str().unwrap(),
                     ]);
+                }
+            }
+
+            KeyCode::Char('q') => {
+                if let Some(h) = &mut self.mpv_handler {
+                    let file = self.file_list[self.list_state].clone();
+                    if self.is_playing {
+                        self.queue.push_back(file);
+                    } else {
+                        let _ = h.command(&["loadfile", file.to_str().unwrap()]);
+                    }
+                }
+            }
+            KeyCode::Char('s') => {
+                if let Some(h) = &mut self.mpv_handler {
+                    let file: PathBuf = self.queue.pop_front().unwrap_or("".into());
+                    let _ = h.command(&["loadfile", file.to_str().unwrap()]);
                 }
             }
 
