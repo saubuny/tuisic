@@ -9,6 +9,7 @@ pub struct InfoPanelWidget;
 
 impl InfoPanelWidget {
     pub fn render(self, area: Rect, buf: &mut Buffer, metadata: String) {
+        let layout = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).split(area);
         let title = Title::from(" Metadata ".bold());
         let block = Block::default()
             .title(title.alignment(Alignment::Center))
@@ -25,6 +26,19 @@ impl InfoPanelWidget {
             }
         }
 
-        Paragraph::new(lines).block(block).render(area, buf);
+        Paragraph::new(lines).block(block).render(layout[0], buf);
+        let lines = vec![
+            Line::from(format!("{:7}{}", "Pause", "<p>")),
+            Line::from(format!("{:7}{}", "Volume", "<[> <]>")),
+            Line::from(format!("{:7}{}", "Speed", "<(> <)>")),
+            Line::from(format!("{:7}{}", "Play", "<Enter>")),
+        ];
+
+        let title = Title::from(" Controls ".bold());
+        let block = Block::default()
+            .title(title.alignment(Alignment::Center))
+            .borders(Borders::ALL)
+            .border_set(border::PLAIN);
+        Paragraph::new(lines).block(block).render(layout[1], buf);
     }
 }

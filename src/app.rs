@@ -41,6 +41,7 @@ impl App {
             let _ = h.observe_property::<i64>("playback-time", 0);
         }
 
+        // TODO: Support nested folders
         let music_dir = xdg_user::music().unwrap();
         if let Some(d) = music_dir {
             for path in fs::read_dir(d)? {
@@ -99,11 +100,14 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.scroll_music_list_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_music_list_down(),
             // Test for running audio, remove this later when selection is implemented
-            // KeyCode::Char('t') => {
-            //     if let Some(h) = &mut self.mpv_handler {
-            //         let _ = h.command(&["loadfile", "/home/saubuny/Downloads/tricot.mp3"]);
-            //     }
-            // }
+            KeyCode::Enter => {
+                if let Some(h) = &mut self.mpv_handler {
+                    let _ = h.command(&[
+                        "loadfile",
+                        self.file_list[self.list_state].to_str().unwrap(),
+                    ]);
+                }
+            }
 
             // Definitely a better way to do all of this but it works so oh well
             // TODO: Implement speed, volume, and skip queue controls
