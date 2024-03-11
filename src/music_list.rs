@@ -3,7 +3,7 @@ use ratatui::{
     symbols::border,
     widgets::{block::*, *},
 };
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 #[derive(Default)]
 pub struct MusicListWidget;
