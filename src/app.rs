@@ -4,12 +4,13 @@ use crate::{
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use mpv::Result;
 use ratatui::prelude::*;
-use std::collections::VecDeque;
-use std::fs;
-use std::io;
-use std::ops::{Add, Sub};
-use std::path::PathBuf;
-use std::time::Duration;
+use std::{
+    collections::VecDeque,
+    fs, io,
+    ops::{Add, Sub},
+    path::PathBuf,
+    time::Duration,
+};
 
 #[derive(Default, Clone, Copy)]
 pub struct MusicState {
@@ -44,17 +45,20 @@ impl App {
             let _ = h.observe_property::<i64>("playback-time", 0);
         }
 
-        // TODO: Support nested folders
-        let music_dir = xdg_user::music().unwrap();
+        let music_dir = xdg_user::music().expect("Please set up your XDG user directories.");
         if let Some(d) = music_dir {
             self.base_path = d.clone();
             for path in fs::read_dir(d)? {
                 let path = path.unwrap().path();
-                self.file_list.push(path);
+                if path.is_dir() {
+                    for path in fs::read_dir(path)? {
+                        let path = path.unwrap().path();
+                        self.file_list.push(path);
+                    }
+                } else {
+                    self.file_list.push(path);
+                }
             }
-        } else {
-            self.mpv_metadata =
-                "Please make sure you have an XDG Music Directory Set up".to_string();
         }
 
         while !self.exit {
@@ -109,7 +113,6 @@ impl App {
             KeyCode::Esc => self.exit(),
             KeyCode::Up | KeyCode::Char('k') => self.scroll_music_list_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_music_list_down(),
-            // Test for running audio, remove this later when selection is implemented
             KeyCode::Enter => {
                 if let Some(h) = &mut self.mpv_handler {
                     let _ = h.command(&[
@@ -123,7 +126,6 @@ impl App {
             KeyCode::Char('s') => self.skip_queue(),
 
             // Definitely a better way to do all of this but it works so oh well
-            // TODO: Implement speed, volume, and skip queue controls
             KeyCode::Char('p') => {
                 if let Some(h) = &mut self.mpv_handler {
                     if h.get_property::<&str>("pause").unwrap() == "no" {
@@ -245,7 +247,7 @@ impl Widget for &App {
             buf,
             self.list_state,
             &self.file_list,
-            self.base_path.clone(),
+            &self.base_path,
         );
 
         InfoPanelWidget::default().render(horizontal_layout[1], buf, self.mpv_metadata.clone());
