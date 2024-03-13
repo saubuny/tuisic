@@ -9,6 +9,7 @@ description = "A terminal music player based off your xdg music directory"
 readme = "README.md"
 keywords = ["music", "cli", "player", "tui"]
 categories = ["command-line-utilities"]
+rust-version = "1.70"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
