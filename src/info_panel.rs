@@ -17,12 +17,12 @@ impl InfoPanelWidget {
             .border_set(border::PLAIN);
         let mut lines = vec![];
 
-        let mut str = String::from("");
-        for (_, ch) in metadata.chars().enumerate() {
+        let mut str = String::new();
+        for ch in metadata.chars() {
             str.push(ch);
             if ch == '\n' {
                 lines.push(Line::from(str));
-                str = String::from("");
+                str = String::new();
             }
         }
 
