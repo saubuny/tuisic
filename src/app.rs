@@ -45,6 +45,8 @@ impl App {
             let _ = h.observe_property::<i64>("playback-time", 0);
         }
 
+        // TODO: Let user choose the directory, the xdg thing is just temporary until I stop being
+        // lazy
         let music_dir = xdg_user::music().expect("Please set up your XDG user directories.");
         if let Some(d) = music_dir {
             self.base_path = d.clone();
@@ -242,7 +244,7 @@ impl Widget for &App {
             Layout::horizontal([Constraint::Percentage(70), Constraint::Fill(1)])
                 .split(vertical_layout[0]);
 
-        MusicListWidget::default().render(
+        MusicListWidget.render(
             horizontal_layout[0],
             buf,
             self.list_state,

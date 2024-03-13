@@ -3,7 +3,7 @@ use ratatui::{
     symbols::border,
     widgets::{block::*, *},
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Default)]
 pub struct MusicListWidget;
@@ -15,7 +15,7 @@ impl MusicListWidget {
         buf: &mut Buffer,
         state: usize,
         file_list: &Vec<PathBuf>,
-        base_path: &PathBuf,
+        base_path: &Path,
     ) {
         let title = Title::from(" Files ".bold());
         let block = Block::default()
@@ -25,7 +25,13 @@ impl MusicListWidget {
 
         let mut items: Vec<String> = vec![];
         for path in file_list {
-            self.add_path(&mut items, path, base_path);
+            items.push(
+                path.strip_prefix(base_path)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            );
         }
 
         let list = List::new(items)
@@ -34,15 +40,5 @@ impl MusicListWidget {
             .highlight_symbol("> ");
         let mut list_state = ListState::default().with_selected(Some(state));
         StatefulWidget::render(list, area, buf, &mut list_state);
-    }
-
-    fn add_path(&self, items: &mut Vec<String>, path: &PathBuf, base_path: &PathBuf) {
-        items.push(
-            path.strip_prefix(base_path.clone())
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string(),
-        );
     }
 }
