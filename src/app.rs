@@ -102,7 +102,7 @@ impl App {
         if event::poll(Duration::from_millis(100))? {
             match event::read()? {
                 Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                    self.handle_key_event(key_event)
+                    self.handle_key_event(key_event);
                 }
                 _ => {}
             };
@@ -213,11 +213,11 @@ impl App {
             let progress = h.get_property::<i64>("playback-time")?;
 
             self.music_state = MusicState {
-                speed,
+                progress,
                 duration,
                 paused,
                 volume,
-                progress,
+                speed,
             };
         }
         Ok(())
@@ -252,7 +252,7 @@ impl Widget for &App {
             &self.base_path,
         );
 
-        InfoPanelWidget.render(horizontal_layout[1], buf, self.mpv_metadata.clone());
-        InfoLineWidget.render(vertical_layout[1], buf, self.music_state);
+        InfoPanelWidget::default().render(horizontal_layout[1], buf, self.mpv_metadata.clone());
+        InfoLineWidget::default().render(vertical_layout[1], buf, self.music_state);
     }
 }
