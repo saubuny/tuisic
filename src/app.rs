@@ -115,6 +115,8 @@ impl App {
             KeyCode::Esc => self.exit(),
             KeyCode::Up | KeyCode::Char('k') => self.scroll_music_list_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_music_list_down(),
+            KeyCode::Home => self.scroll_music_list_top(),
+            KeyCode::End => self.scroll_music_list_bottom(),
             KeyCode::Enter => {
                 if let Some(h) = &mut self.mpv_handler {
                     let _ = h.command(&[
@@ -229,6 +231,14 @@ impl App {
 
     fn scroll_music_list_down(&mut self) {
         self.list_state = self.list_state.add(1).clamp(0, self.file_list.len() - 1);
+    }
+
+    fn scroll_music_list_top(&mut self) {
+        self.list_state = self.list_state.saturating_sub(self.file_list.len());
+    }
+
+    fn scroll_music_list_bottom(&mut self) {
+        self.list_state = self.list_state.add(self.file_list.len()).clamp(0, self.file_list.len() - 1);
     }
 
     fn exit(&mut self) {
